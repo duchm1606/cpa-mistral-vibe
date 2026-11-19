@@ -66,9 +66,10 @@ The provider key is `mistral`; credentials are `mistral-*.json` auth files.
 ## Normalization
 
 Mistral's chat API has a few quirks that OpenAI-shaped clients (e.g. Codex) trip
-on. **This plugin handles all of them automatically — no config, no extra
-plugin.** Everything below is scoped to this plugin's own Mistral models, so
-other providers (codex, claude, …) are never touched.
+on. **The fixes in this section are always on — no config, no extra plugin.**
+Mistral's 20-image limit is handled separately and only when you turn it on;
+see [Image cap](#image-cap). Everything here is scoped to this plugin's own
+Mistral models, so other providers (codex, claude, …) are never touched.
 
 **Request** fixes (via the `request_interceptor` and `request_normalizer`
 capabilities, so they apply to both Chat Completions and Responses-API clients
@@ -89,6 +90,9 @@ is ported from
 
 ## Image cap
 
+**Off by default.** Without it, the plugin leaves images alone and Mistral's
+error reaches the client unchanged.
+
 Mistral rejects a request that carries more than 20 images in total, counted
 across the whole conversation, with `400` code `3051` ("Total number of images
 exceeds the maximum allowed of 20"). Clients resend their full history every
@@ -96,7 +100,8 @@ turn, so once a conversation passes 20 images every later turn fails, even a
 text-only one.
 
 Set `strip-excess-images: true` to have the plugin replace the oldest images
-with a short text note before the request reaches Mistral:
+with a short text note before the request reaches Mistral. `max-images` only
+matters when the cap is on:
 
 ```yaml
 plugins:
@@ -117,6 +122,15 @@ plugins:
   that held only an image keeps its place in the conversation.
 - It applies to every client of the CPA instance that uses this plugin's
   Mistral models; there is no per-client switch.
+
+Trade-offs of turning it on:
+
+- The model can no longer see the dropped images. It sees the note instead,
+  and its earlier replies about those images are still in the conversation;
+  a client can view an image again if it needs it.
+- Each time a block is dropped, the prompt changes from the first dropped
+  image onward, so that one request gets fewer cache hits. The requests after
+  it are cached normally again until the next block.
 
 ## Caveats
 
