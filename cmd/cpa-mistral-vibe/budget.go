@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -23,10 +24,20 @@ type pluginConfig struct {
 	APIKey     string
 	ConfigPath string
 	RawYAML    []byte
+	// StripExcessImages turns on the image cap (images.go). Off by default.
+	StripExcessImages bool
+	// MaxImages is the most images a request may carry when the cap is on.
+	MaxImages int
 }
 
+// defaultMaxImages is Mistral's limit, measured 2026-11-19 on
+// deepseek-v4-1-flash-1017: 21 images in one request (one message or spread
+// over turns) fails with 400 code 3051 "Total number of images exceeds the
+// maximum allowed of 20."
+const defaultMaxImages = 20
+
 func defaultConfig() pluginConfig {
-	return pluginConfig{ConfigPath: defaultConfigPath}
+	return pluginConfig{ConfigPath: defaultConfigPath, MaxImages: defaultMaxImages}
 }
 
 func storeConfig(c pluginConfig) {
@@ -41,7 +52,7 @@ func loadConfig() pluginConfig {
 	return state
 }
 
-// parseConfig reads the plugin's own config block. Only two optional scalar
+// parseConfig reads the plugin's own config block. Only a few optional scalar
 // fields matter here, so a line scan is enough and avoids a YAML dependency.
 func parseConfig(configYAML []byte) pluginConfig {
 	c := defaultConfig()
@@ -56,6 +67,15 @@ func parseConfig(configYAML []byte) pluginConfig {
 		case strings.HasPrefix(trimmed, "config-path:"):
 			if v := scalarValue(trimmed[len("config-path:"):]); v != "" {
 				c.ConfigPath = v
+			}
+		case strings.HasPrefix(trimmed, "strip-excess-images:"):
+			switch strings.ToLower(scalarValue(trimmed[len("strip-excess-images:"):])) {
+			case "true", "yes", "on", "1":
+				c.StripExcessImages = true
+			}
+		case strings.HasPrefix(trimmed, "max-images:"):
+			if n, err := strconv.Atoi(scalarValue(trimmed[len("max-images:"):])); err == nil && n > 0 {
+				c.MaxImages = n
 			}
 		}
 	}

@@ -6,7 +6,7 @@
       "name": "Mistral Vibe",
       "description": "Adds a Mistral provider to CLIProxyAPI through the Vibe (console.mistral.ai) browser OAuth sign-in, so inference draws on the subscription's Vibe Code allowance instead of a pay-as-you-go API key. Browser login stored as a CPA credential, native model discovery from the Mistral /v1/models API, and a Quota Management card showing the monthly Vibe Code and API allowances. Inference runs on CPA's built-in OpenAI-compatible executor via the credential's base_url and api_key attributes.",
       "author": "duchm1606",
-      "version": "0.3.1",
+      "version": "0.4.0",
       "repository": "https://github.com/duchm1606/cpa-mistral-vibe",
       "homepage": "https://github.com/duchm1606/cpa-mistral-vibe",
       "license": "MIT",

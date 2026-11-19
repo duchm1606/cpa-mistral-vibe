@@ -14,6 +14,7 @@ import (
 //   - developer role        -> system        (Mistral rejects "developer")
 //   - reasoning_effort medium -> high         (most Mistral models reject "medium")
 //   - drop assistant reasoning_content         (Mistral 422s on it in history)
+//   - optional, off by default: cap images per request (images.go)
 
 type interceptRequest struct {
 	ToFormat       string `json:"ToFormat"`
@@ -120,6 +121,9 @@ func applyRequestFixes(payload []byte) ([]byte, bool) {
 					changed = true
 				}
 			}
+		}
+		if cfg := loadConfig(); cfg.StripExcessImages && stripExcessImages(msgs, cfg.MaxImages) {
+			changed = true
 		}
 	}
 	if eff, _ := doc["reasoning_effort"].(string); eff == "medium" {

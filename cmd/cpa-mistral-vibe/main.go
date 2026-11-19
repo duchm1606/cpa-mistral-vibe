@@ -212,6 +212,8 @@ func registrationJSON(schemaVersion uint32) []byte {
 			"ConfigFields": []map[string]string{
 				{"Name": "api-key", "Type": "string", "Description": "Mistral key (mstrl_...). Leave empty to auto-detect from the CPA config file."},
 				{"Name": "config-path", "Type": "string", "Description": "Path to the CPA config file to read the Mistral key from. Default /app/config.yaml."},
+				{"Name": "strip-excess-images", "Type": "boolean", "Description": "Replace the oldest images with a text note when a request carries more than max-images. Off by default."},
+				{"Name": "max-images", "Type": "integer", "Description": "Image limit used by strip-excess-images. Default 20 (Mistral's limit)."},
 			},
 		},
 		"capabilities": map[string]any{

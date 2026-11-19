@@ -58,6 +58,8 @@ config block above. Tagged releases (`vX.Y.Z`) build `linux/amd64` and
 |---|---|
 | `api-key` | Optional. A `mstrl_…` key to use directly. Leave empty to use the signed-in credential (recommended). |
 | `config-path` | Optional. Path to the CPA config file the plugin may read a key from. Default `/app/config.yaml`. |
+| `strip-excess-images` | Optional, default `false`. Cap the images sent to Mistral per request (see [Image cap](#image-cap)). |
+| `max-images` | Optional, default `20`. The cap used by `strip-excess-images`. |
 
 The provider key is `mistral`; credentials are `mistral-*.json` auth files.
 
@@ -84,6 +86,37 @@ and non-streaming) and strips Mistral's non-standard `response_error`. This logi
 is ported from
 [`cpa-mistral-normalizer`](https://github.com/Batuhan4/cpa-mistral-normalizer)
 (MIT, © batuhan4); you do **not** need to install that plugin.
+
+## Image cap
+
+Mistral rejects a request that carries more than 20 images in total, counted
+across the whole conversation, with `400` code `3051` ("Total number of images
+exceeds the maximum allowed of 20"). Clients resend their full history every
+turn, so once a conversation passes 20 images every later turn fails, even a
+text-only one.
+
+Set `strip-excess-images: true` to have the plugin replace the oldest images
+with a short text note before the request reaches Mistral:
+
+```yaml
+plugins:
+  configs:
+    cpa-mistral-vibe:
+      enabled: true
+      strip-excess-images: true
+      max-images: 20
+```
+
+- Only the request sent to Mistral changes. The client keeps every image in
+  its own history; each request is counted again from scratch, and turning
+  the option off sends everything again on the next request.
+- Images are dropped in blocks of half the limit (10 at the default), so a
+  request keeps between 11 and 20 images and the start of the prompt does not
+  shift on every new image.
+- A dropped image becomes a text part in the same message, so a tool result
+  that held only an image keeps its place in the conversation.
+- It applies to every client of the CPA instance that uses this plugin's
+  Mistral models; there is no per-client switch.
 
 ## Caveats
 
