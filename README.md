@@ -15,7 +15,9 @@ It does three things:
   read live from Mistral's billing endpoint.
 - **Native model discovery** — the chat-capable models are listed dynamically
   from Mistral's `/v1/models` (DeepSeek, GLM/Z.ai, Mistral, Magistral, Ministral,
-  Codestral, Voxtral, …). No hard-coded catalog.
+  Codestral, Voxtral, …). No hard-coded catalog. Each credential is listed
+  with its own key, handed over by the host, so discovery works wherever the
+  host keeps its auth directory (Docker or a native install).
 
 Inference itself runs on CPA's built-in OpenAI-compatible executor: the plugin
 stores `base_url` and `api_key` on the credential's attributes, and the host

@@ -13,10 +13,9 @@ import (
 	"time"
 )
 
-const (
-	defaultConfigPath = "/app/config.yaml"
-	mistralBase       = "https://api.mistral.ai"
-)
+const defaultConfigPath = "/app/config.yaml"
+
+var mistralBase = "https://api.mistral.ai"
 
 var keyPattern = regexp.MustCompile(`mstrl_[A-Za-z0-9_-]+`)
 
