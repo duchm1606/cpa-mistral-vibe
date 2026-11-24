@@ -169,8 +169,10 @@ func handleMethod(method string, request []byte) []byte {
 
 	// --- model registration (inference runs on the host's built-in
 	//     OpenAI-compat executor via the auth's base_url + api_key attributes) ---
-	case "model.register", "model.static", "model.for_auth":
-		return modelsJSON()
+	case "model.register", "model.static":
+		return modelsJSON(configuredKey())
+	case "model.for_auth":
+		return modelsJSON(authModelKey(request))
 
 	// --- response normalization: flatten Mistral's thinking-chunk content
 	//     into content + reasoning_content (ported from cpa-mistral-normalizer) ---
@@ -221,6 +223,7 @@ func registrationJSON(schemaVersion uint32) []byte {
 			"quota_provider":             true,
 			"management_api":             true,
 			"model_registrar":            true,
+			"model_provider":             true,
 			"response_before_translator": true,
 			"request_interceptor":        true,
 			"request_normalizer":         true,
