@@ -78,12 +78,7 @@ func isMistralModel(model string) bool {
 	if m == "" {
 		return false
 	}
-	for _, mm := range discoverModels() {
-		if mm.ID == m {
-			return true
-		}
-	}
-	return false
+	return servesModel(m)
 }
 
 // baseModel strips CLIProxyAPI's thinking suffix, e.g. "model(high)".

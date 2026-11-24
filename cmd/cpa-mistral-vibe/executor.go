@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"sync"
 	"time"
 )
@@ -22,30 +23,29 @@ type modelsListResp struct {
 	Data []mistralModel `json:"data"`
 }
 
+type cachedModels struct {
+	models []mistralModel
+	at     time.Time
+}
+
 var (
 	modelsCacheMu sync.Mutex
-	modelsCache   []mistralModel
-	modelsCacheAt time.Time
+	modelsCache   = map[string]cachedModels{}
 )
 
 const modelsCacheTTL = 10 * time.Minute
 
-// discoverModels returns the chat-capable models from Mistral's /v1/models,
-// cached briefly. Native discovery, no hard-coded catalog. Falls back to the
-// two known models if the key or network is unavailable.
-func discoverModels() []mistralModel {
-	modelsCacheMu.Lock()
-	if len(modelsCache) > 0 && time.Since(modelsCacheAt) < modelsCacheTTL {
-		cached := modelsCache
-		modelsCacheMu.Unlock()
-		return cached
-	}
-	modelsCacheMu.Unlock()
-
-	key, err := resolveKey()
-	if err != nil {
+func discoverModels(key string) []mistralModel {
+	if key == "" {
 		return fallbackModels()
 	}
+	modelsCacheMu.Lock()
+	cached, ok := modelsCache[key]
+	modelsCacheMu.Unlock()
+	if ok && time.Since(cached.at) < modelsCacheTTL {
+		return cached.models
+	}
+
 	var out modelsListResp
 	if err := mistralGet(key, "/v1/models", &out); err != nil {
 		return fallbackModels()
@@ -60,10 +60,50 @@ func discoverModels() []mistralModel {
 		return fallbackModels()
 	}
 	modelsCacheMu.Lock()
-	modelsCache = chat
-	modelsCacheAt = time.Now()
+	modelsCache[key] = cachedModels{models: chat, at: time.Now()}
 	modelsCacheMu.Unlock()
 	return chat
+}
+
+func servesModel(id string) bool {
+	for _, m := range discoverModels(configuredKey()) {
+		if m.ID == id {
+			return true
+		}
+	}
+	modelsCacheMu.Lock()
+	defer modelsCacheMu.Unlock()
+	for _, cached := range modelsCache {
+		for _, m := range cached.models {
+			if m.ID == id {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+func configuredKey() string {
+	key, err := resolveKey()
+	if err != nil {
+		return ""
+	}
+	return key
+}
+
+func authModelKey(request []byte) string {
+	var req struct {
+		StorageJSON []byte            `json:"StorageJSON"`
+		Attributes  map[string]string `json:"Attributes"`
+	}
+	_ = json.Unmarshal(request, &req)
+	if m := keyPattern.FindString(req.Attributes["api_key"]); m != "" {
+		return m
+	}
+	if m := keyPattern.Find(req.StorageJSON); m != nil {
+		return string(m)
+	}
+	return configuredKey()
 }
 
 func fallbackModels() []mistralModel {
@@ -73,8 +113,8 @@ func fallbackModels() []mistralModel {
 	}
 }
 
-func modelsJSON() []byte {
-	src := discoverModels()
+func modelsJSON(key string) []byte {
+	src := discoverModels(key)
 	models := make([]map[string]any, 0, len(src))
 	for _, m := range src {
 		entry := map[string]any{
