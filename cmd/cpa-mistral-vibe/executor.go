@@ -66,18 +66,29 @@ func discoverModels(key string) []mistralModel {
 }
 
 func servesModel(id string) bool {
-	for _, m := range discoverModels(configuredKey()) {
+	modelsCacheMu.Lock()
+	hasCached := len(modelsCache) > 0
+	for _, cached := range modelsCache {
+		for _, m := range cached.models {
+			if m.ID == id {
+				modelsCacheMu.Unlock()
+				return true
+			}
+		}
+	}
+	modelsCacheMu.Unlock()
+
+	for _, m := range fallbackModels() {
 		if m.ID == id {
 			return true
 		}
 	}
-	modelsCacheMu.Lock()
-	defer modelsCacheMu.Unlock()
-	for _, cached := range modelsCache {
-		for _, m := range cached.models {
-			if m.ID == id {
-				return true
-			}
+	if hasCached {
+		return false
+	}
+	for _, m := range discoverModels(configuredKey()) {
+		if m.ID == id {
+			return true
 		}
 	}
 	return false

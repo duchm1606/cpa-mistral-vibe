@@ -132,6 +132,27 @@ func TestRequestFixesCoverModelsOfEveryCredential(t *testing.T) {
 	}
 }
 
+func TestServesModelChecksCacheBeforeConfiguredKey(t *testing.T) {
+	calls := fakeMistral(t, map[string][]string{
+		"mstrl_alpha": {"model-a1"},
+	})
+	storeConfig(pluginConfig{APIKey: "mstrl_revoked", ConfigPath: t.TempDir() + "/missing.yaml"})
+
+	handleMethod("model.for_auth", forAuthRequest(t, "", map[string]string{"api_key": "mstrl_alpha"}))
+	if *calls != 1 {
+		t.Fatalf("expected 1 discovery call, got %d", *calls)
+	}
+	if !isMistralModel("model-a1") || !isMistralModel(fallbackModels()[0].ID) {
+		t.Fatal("cached and fallback models must still be served")
+	}
+	if isMistralModel("gpt-5") {
+		t.Fatal("non-Mistral model must not be served")
+	}
+	if *calls != 1 {
+		t.Fatalf("servesModel must not re-query configuredKey once modelsCache is populated, got %d calls", *calls)
+	}
+}
+
 func TestModelsFallBackWithoutUsableKey(t *testing.T) {
 	fakeMistral(t, map[string][]string{})
 	want := make([]string, 0, 2)
